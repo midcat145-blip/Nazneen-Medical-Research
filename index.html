@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nazneen Medical Research - Notebook LLM Workspace</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDF.js for Client-Side PDF Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        clinical: {
+                            50: '#f0f9fa',
+                            100: '#e0f2f4',
+                            500: '#0d9488',
+                            600: '#0f766e',
+                            900: '#115e59',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Smooth Custom Scrollbar for Clinical Panels */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e4e4e7;
+            border-radius: 20px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d4d4d8;
+        }
+
+        /* Ambient Pulse Animations */
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 24px rgba(16, 185, 129, 0.8);
+                transform: scale(1.08);
+            }
+        }
+        .connection-glow-active {
+            animation: pulse-glow 2s infinite;
+        }
+
+        /* Markdown Styling Utilities */
+        .markdown-body h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #18181b;
+            margin-top: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-body p {
+            font-size: 0.875rem;
+            color: #3f3f46;
+            line-height: 1.625;
+            margin-bottom: 0.75rem;
+        }
+        .markdown-body ul {
+            list-style-type: disc;
+            padding-left: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+        .markdown-body li {
+            font-size: 0.875rem;
+            color: #3f3f46;
+            margin-bottom: 0.25rem;
+        }
+        .markdown-body strong {
+            font-weight: 600;
+            color: #0f766e;
+        }
+    </style>
+</head>
+<body class="bg-[#fafafb] text-zinc-900 font-sans min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+
+    <!-- Header bar -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 p-0.5 flex items-center justify-center shadow-lg shadow-teal-100">
+                <div class="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+                    <i data-lucide="microscope" class="w-5 h-5 text-teal-600"></i>
+                </div>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold tracking-tight text-zinc-900 flex items-center gap-1.5">
+                    Nazneen Medical Research <span class="text-[9px] bg-teal-50 text-teal-700 px-2.5 py-0.5 rounded-full font-semibold border border-teal-100">Notebook LLM</span>
+                </h1>
+                <p class="text-[11px] text-zinc-400 font-medium">Cognitive Synthesis Platform & Medical Intelligence</p>
+            </div>
+        </div>
+
+        <!-- Connection Controller -->
+        <div class="flex items-center space-x-4">
+            <div class="bg-white border border-zinc-200/80 rounded-2xl p-1.5 flex items-center space-x-2 shadow-sm">
+                <div class="flex items-center space-x-1.5 px-2">
+                    <span id="connection-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500 transition-all duration-500"></span>
+                    <span id="connection-status-text" class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Standby</span>
+                </div>
+                
+                <!-- Quick API key Toggle Button -->
+                <button onclick="toggleApiKeyPanel()" class="flex items-center space-x-1 px-2.5 py-1 bg-zinc-50 hover:bg-zinc-100 rounded-xl text-xs font-semibold text-zinc-700 transition-all">
+                    <i data-lucide="key" class="w-3 h-3"></i>
+                    <span>Configure Key</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="api-key-panel" class="hidden bg-white border-b border-zinc-200/80 px-6 py-4 transition-all duration-300">
+        <div class="max-w-xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex-1">
+                <h3 class="text-xs font-bold text-zinc-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-teal-600"></i> Configure Gemini 2.5 Flash / 3 Flash Credentials
+                </h3>
+                <p class="text-[11px] text-zinc-400 mt-1">Provide your custom API key. If left blank, it will attempt to use the platform's automatic runtime credentials.</p>
+            </div>
+            <div class="w-full md:w-auto flex items-center space-x-2">
+                <input 
+                    type="password" 
+                    id="gemini-api-key" 
+                    placeholder="Enter Gemini API Key..." 
+                    class="w-full md:w-64 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-mono"
+                />
+                <button onclick="testApiConnection()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap">
+                    Test & Connect
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT COLUMN: Source Vault & Upload Manager (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col space-y-6">
+            
+            <!-- Upload Panel -->
+            <div class="bg-white rounded-[24px] p-5 border border-zinc-100 shadow-sm flex flex-col space-y-4">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Document Upload Hub</h2>
+                    <p class="text-[11px] text-zinc-400 mt-0.5">Upload medical trials, PDFs, protocols, or manual clinical notes.</p>
+                </div>
+
+                <!-- Drag & Drop Zone -->
+                <div 
+                    id="drop-zone"
+                    class="border-2 border-dashed border-zinc-200 hover:border-teal-500 bg-zinc-50/50 hover:bg-teal-50/20 rounded-[20px] p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-2.5"
+                    onclick="triggerFileInput()"
+                >
+                    <input type="file" id="file-uploader" multiple accept=".pdf,.txt,.md" class="hidden" onchange="handleFileSelect(event)">
+                    <div class="p-3 bg-white shadow-sm rounded-2xl text-zinc-400 group-hover:text-teal-600">
+                        <i data-lucide="file-up" class="w-5 h-5 text-teal-600"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-zinc-700">Upload PDF, TXT, or MD</h4>
+                        <p class="text-[10px] text-zinc-400 mt-0.5">Drag files here or click to browse. Max 20MB per file.</p>
+                    </div>
+                </div>
+
+                <!-- Alternative: Add Manual Document -->
+                <div class="flex items-center justify-between border-t border-zinc-100 pt-3">
+                    <span class="text-[11px] text-zinc-400 font-medium">Have raw text?</span>
+                    <button onclick="openManualNoteModal()" class="flex items-center space-x-1 text-xs text-teal-600 hover:text-teal-700 font-bold">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Create Research Note</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Uploaded Documents Repository -->
+            <div class="bg-white rounded-[24px] p-5 border border-zinc-100 shadow-sm flex flex-col flex-1 min-h-[380px]">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Grounding Repositories</h2>
+                        <p class="text-[10px] text-zinc-400 mt-0.5">Checkbox state controls context limits for model inference.</p>
+                    </div>
+                    <span id="sources-badge" class="text-[10px] font-bold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">0 Loaded</span>
+                </div>
+
+                <!-- Dynamic Documents List -->
+                <div id="sources-list" class="flex-1 space-y-3 overflow-y-auto max-h-[400px] pr-1">
+                    <!-- Dynamic Injection Area -->
+                    <div id="empty-sources-view" class="h-full flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-zinc-100 rounded-[20px]">
+                        <div class="p-3 bg-zinc-50 rounded-full mb-3 text-zinc-300">
+                            <i data-lucide="folder-open" class="w-5 h-5"></i>
+                        </div>
+                        <h3 class="text-xs font-bold text-zinc-700">No Documents Uploaded</h3>
+                        <p class="text-[10px] text-zinc-400 max-w-[220px] mt-1 leading-normal">
+                            Upload clinical trials, cardiology notes, or biology study sheets to build your local AI knowledge base.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Total Context Summary bar -->
+                <div class="bg-zinc-50 border border-zinc-100 rounded-2xl p-3.5 mt-4 flex items-start space-x-3">
+                    <i data-lucide="info" class="w-4 h-4 text-teal-600 shrink-0 mt-0.5"></i>
+                    <p class="text-[10.5px] text-zinc-500 leading-relaxed">
+                        <strong>Privacy First:</strong> All PDF & text parsing is completed 100% locally on your computer. Extracted metadata is transmitted solely to the chosen Gemini pipeline.
+                    </p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: Gemini Model Interaction Console (7 Cols) -->
+        <section class="lg:col-span-7 bg-white rounded-[24px] border border-zinc-100 shadow-sm overflow-hidden flex flex-col min-h-[550px]">
+            
+            <!-- Chat Header Console -->
+            <div class="px-6 py-4 border-b border-zinc-100 bg-zinc-50/40 flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse"></div>
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-700">Analytical Research Terminal</h3>
+                        <p id="chat-sub-label" class="text-[10px] text-zinc-400 font-medium">Model: Gemini 2.5 Flash / 3 Flash Premium</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <button onclick="clearChatHistory()" class="p-2 hover:bg-zinc-100 rounded-xl text-zinc-400 hover:text-zinc-700 transition-all" title="Clear Chat History">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                    <!-- Total Context Select Badge -->
+                    <div id="selected-contexts-indicator" class="bg-teal-50 border border-teal-100 text-teal-700 px-3 py-1 rounded-full text-[10px] font-semibold">
+                        0 Sources Selected
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Messaging Board -->
+            <div id="chat-messages" class="flex-1 p-6 space-y-4 overflow-y-auto max-h-[460px]">
+                <!-- Static Greeting Message -->
+                <div class="flex justify-start">
+                    <div class="bg-zinc-50 border border-zinc-100 rounded-2xl rounded-tl-sm px-4.5 py-3.5 max-w-[85%] text-sm leading-relaxed text-zinc-700 shadow-sm">
+                        <h4 class="font-bold text-zinc-900 text-xs mb-1 flex items-center gap-1.5 text-teal-700">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-teal-500"></i> Nazneen Research Assistant
+                        </h4>
+                        <p class="text-xs leading-relaxed text-zinc-600">
+                            Welcome to the Medical Grounding Room. Upload your clinical papers, guidelines, or research studies on the left.
+                        </p>
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <button onclick="injectSuggestedPrompt('Summarize the primary objectives and conclusions of the active documents.')" class="bg-white border border-zinc-200/60 hover:border-teal-500 text-[10px] text-zinc-500 hover:text-teal-700 p-2 rounded-xl text-left transition-all font-medium">
+                                📋 Summarize active documents
+                            </button>
+                            <button onclick="injectSuggestedPrompt('Analyze any clinical indications, risks, or dosage guidelines outlined in the sources.')" class="bg-white border border-zinc-200/60 hover:border-teal-500 text-[10px] text-zinc-500 hover:text-teal-700 p-2 rounded-xl text-left transition-all font-medium">
+                                🔬 Extract clinical parameters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Composer and Controller -->
+            <div class="p-4 border-t border-zinc-100 bg-zinc-50/40">
+                <form id="chat-form" onsubmit="handleChatSubmit(event)" class="flex items-center space-x-2 bg-white p-1 rounded-2xl border border-zinc-200/80 shadow-sm">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        placeholder="Ask a scientific question about your uploaded materials..." 
+                        class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-xs pl-4 py-2.5"
+                    />
+                    <button 
+                        type="submit" 
+                        id="send-button"
+                        class="bg-zinc-950 hover:bg-zinc-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5"
+                    >
+                        <span>Query LLM</span>
+                        <i data-lucide="arrow-right-to-line" class="w-3.5 h-3.5"></i>
+                    </button>
+                </form>
+                <div class="flex items-center justify-between mt-2.5 px-1.5">
+                    <p class="text-[9.5px] text-zinc-400">
+                        Inference strictly limited to documents marked for grounding to avoid halluncinative feedback.
+                    </p>
+                    <span id="typing-indicator-label" class="text-[9.5px] text-teal-600 font-bold hidden flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-teal-500 animate-ping"></span> Analyzing...
+                    </span>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Document View Side Panel / Inspector -->
+    <div id="inspector-overlay" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-end">
+        <div class="bg-white w-full max-w-lg h-full p-6 flex flex-col shadow-2xl animate-fade-in-down border-l border-zinc-200">
+            <div class="flex items-center justify-between pb-4 border-b border-zinc-100 mb-4">
+                <div class="flex items-center space-x-2.5">
+                    <i data-lucide="file-text" class="w-5 h-5 text-teal-600"></i>
+                    <div>
+                        <h3 id="inspector-title" class="text-xs font-bold text-zinc-900 truncate max-w-[320px]">Document Viewer</h3>
+                        <p id="inspector-meta" class="text-[10px] text-zinc-400">Metadata details</p>
+                    </div>
+                </div>
+                <button onclick="closeInspector()" class="p-1.5 hover:bg-zinc-100 rounded-full text-zinc-400 hover:text-zinc-700 transition-all">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Main text container -->
+            <div class="flex-1 overflow-y-auto bg-zinc-50 border border-zinc-100 rounded-[20px] p-5">
+                <p id="inspector-content" class="text-xs leading-relaxed text-zinc-700 whitespace-pre-wrap font-sans"></p>
+            </div>
+
+            <div class="flex items-center justify-between mt-4 pt-3 border-t border-zinc-100">
+                <div class="flex space-x-2">
+                    <button onclick="speakInspectorContent()" class="flex items-center space-x-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-2 rounded-xl text-xs font-semibold transition-all">
+                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-zinc-500"></i>
+                        <span>Text to Speech</span>
+                    </button>
+                    <button onclick="copyInspectorContent()" class="flex items-center space-x-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-2 rounded-xl text-xs font-semibold transition-all">
+                        <i data-lucide="clipboard" class="w-3.5 h-3.5 text-zinc-500"></i>
+                        <span>Copy Text</span>
+                    </button>
+                </div>
+                <button onclick="closeInspector()" class="bg-zinc-950 hover:bg-zinc-800 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all">
+                    Close Viewer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Note Modal -->
+    <div id="manual-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-[24px] max-w-lg w-full p-6 shadow-2xl border border-zinc-100">
+            <div class="flex items-center justify-between pb-4 border-b border-zinc-100">
+                <div>
+                    <h3 class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Create Research Note</h3>
+                    <p class="text-[10px] text-zinc-400">Add a custom document or transcript directly to your local workspace.</p>
+                </div>
+                <button onclick="closeManualNoteModal()" class="p-1.5 hover:bg-zinc-100 rounded-full text-zinc-400">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 py-4">
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">Note Title</label>
+                    <input 
+                        type="text" 
+                        id="manual-note-title" 
+                        placeholder="e.g., Patient Clinical Trial Notes - Part 1" 
+                        class="w-full p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none"
+                    />
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">Research Text Content</label>
+                    <textarea 
+                        id="manual-note-content" 
+                        placeholder="Type, paste study instructions, clinical guidelines or patient discharge rules here..." 
+                        rows="6"
+                        class="w-full p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none"
+                    ></textarea>
+                </div>
+            </div>
+
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeManualNoteModal()" class="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-2.5 rounded-full text-xs font-bold transition-all">
+                    Cancel
+                </button>
+                <button onclick="saveManualNote()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-full text-xs font-bold transition-all shadow-sm">
+                    Sync Note
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification System -->
+    <div id="toast-container" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        // Set PDF.js workers globally
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // Local State Storage variables
+        let uploadedSources = [];
+        let activeApiKey = "";
+        let chatHistory = [];
+        let isSystemConnected = false;
+
+        // Initialize Lucide Icons on load
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            loadAutoSavedKey();
+            loadPrepopulatedSources();
+            updateSourcesView();
+        });
+
+        function loadPrepopulatedSources() {
+            uploadedSources = [
+                {
+                    id: "pre-1",
+                    title: "🧬 Biological Cells & Citric Acid Cycle.txt",
+                    content: `Nazneen Medical Research Database | Research Ref: BIO-CELL-102\n\nCELLULAR METABOLISM & MITOCHONDRIAL RESPIRATION\n\n1. Overview of Cell respiration: Citric Acid Cycle occurs in the mitochondrial matrix of eukaryotic organisms. Key enzymatic steps yield high-energy carriers: NADH, FADH2, and direct GTP/ATP synthesis.\n\n2. The Core Machinery:\n- Pyruvate Dehydrogenase initiates the process by transforming glycolysis-derived Pyruvate (3C) into Acetyl-CoA (2C).\n- Oxaloacetate (4C) integrates Acetyl-CoA to synthesize Citrate (6C), catalyzed directly by citrate synthase.\n- Successive decarboxylations release carbon dioxide (CO2) molecules and reduce electron carriers NAD+ and FAD.\n\n3. High-Yield Summary statistics:\n- Every turn of the Citric Acid Cycle (2 turns per Glucose) yields exactly:\n  - 3 NADH\n  - 1 FADH2\n  - 1 GTP (equivalent to ATP)\n  - 2 CO2\n- Energy produced feeds directly into the Inner Mitochondrial Membrane complexes (Electron Transport Chain) to generate ATP through ATP Synthase driven proton gradients.`,
+                    selected: true,
+                    wordCount: 168,
+                    type: "txt"
+                },
+                {
+                    id: "pre-2",
+                    title: "🏥 Patient Discharge & Hypertension Protocol.txt",
+                    content: `Nazneen Cardiology Care Plan | Case: NC-HENDERSON-881\n\nCLINICAL DISCHARGE REGIMEN & MONITORING TARGETS\n\nPatient Name: Arthur Henderson\nAdmitting Diagnosis: Stage II Hypertensive Heart Disease with early Mitral Valve Regurgitation.\n\nPrimary Medication Regimen:\n1. Lisinopril 20mg PO QD: An ACE Inhibitor class medication. Critical monitoring vectors: Dry clinical cough, serum Potassium metrics (Hyperkalemia prevention).\n2. Metoprolol Succinate 50mg PO QD: Beta-Blocker. Heart rate manager. Patient instructed never to cease intake suddenly due to rebound tachycardic risks.\n3. Atorvastatin 40mg PO QHS: HMG-CoA reductase inhibitor. Plaque stabilizing vector.\n\nKey Physiological Rules & Boundaries:\n- Direct Sodium Intake threshold: strictly capped below 1500mg daily.\n- Liquid Intake limit: Not to exceed 2.0 Liters total daily fluid volume.\n- Light aerobic rehabilitation (daily walks) is encouraged.\n\nRed Flags (Contact Emergency Clinical Hub Immediately):\n- Sudden, unexplained weight surge of >3 lbs in 24 hours (signs fluid balance failure).\n- Onset of resting Dyspnea or positional Orthopnea (lying flat causes clinical breathing distress).`,
+                    selected: true,
+                    wordCount: 177,
+                    type: "txt"
+                }
+            ];
+        }
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `px-5 py-3 rounded-full shadow-xl flex items-center space-x-2.5 text-xs font-semibold bg-white border pointer-events-auto transition-all transform duration-300 translate-y-2 opacity-0 ${
+                type === 'error' ? 'text-red-700 border-red-100 bg-red-50/50' : 'text-zinc-900 border-zinc-100'
+            }`;
+            
+            const dotColor = type === 'error' ? 'bg-red-500' : 'bg-teal-500';
+            toast.innerHTML = `
+                <span class="w-2 h-2 rounded-full ${dotColor} animate-ping"></span>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            // Fade out
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function toggleApiKeyPanel() {
+            const panel = document.getElementById('api-key-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function loadAutoSavedKey() {
+            const savedKey = localStorage.getItem('nazneen_gemini_key');
+            if (savedKey) {
+                document.getElementById('gemini-api-key').value = savedKey;
+                activeApiKey = savedKey;
+                // If saved key exists, let's auto-test silently
+                testApiConnection(true);
+            }
+        }
+
+        async function testApiConnection(silent = false) {
+            const keyInput = document.getElementById('gemini-api-key').value.trim();
+            const dot = document.getElementById('connection-status-dot');
+            const label = document.getElementById('connection-status-text');
+
+            activeApiKey = keyInput;
+            if (keyInput) {
+                localStorage.setItem('nazneen_gemini_key', keyInput);
+            }
+
+            // Perform simple content generation request to verify connection
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: "Hello! Return word OK." }] }]
+                };
+                
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${activeApiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("API credentials rejected");
+                
+                // Connection Successful -> GREEN
+                isSystemConnected = true;
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 connection-glow-active transition-all duration-500";
+                label.className = "text-[10px] font-bold uppercase tracking-wider text-emerald-600";
+                label.innerText = "Connected";
+
+                if (!silent) {
+                    showToast("Gemini 2.5 Flash / 3 Flash pipeline connected!");
+                    document.getElementById('api-key-panel').classList.add('hidden');
+                }
+            } catch (err) {
+                // Connection Failed -> AMBER/RED
+                isSystemConnected = false;
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 transition-all duration-500";
+                label.className = "text-[10px] font-bold uppercase tracking-wider text-zinc-500";
+                label.innerText = "Standby";
+                
+                if (!silent) {
+                    showToast("Pipeline authentication failed. Verify API Key.", "error");
+                }
+            }
+        }
+
+        function triggerFileInput() {
+            document.getElementById('file-uploader').click();
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                Array.from(files).forEach(file => processUploadedFile(file));
+            }
+        }
+
+        // Drop zone drag styling
+        const dropZone = document.getElementById('drop-zone');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-teal-500', 'bg-teal-50/20');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-teal-500', 'bg-teal-50/20');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                Array.from(files).forEach(file => processUploadedFile(file));
+            }
+        });
+
+        async function processUploadedFile(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            
+            showToast(`Loading local parser for ${file.name}...`);
+
+            if (extension === 'pdf') {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        const typedarray = new Uint8Array(e.target.result);
+                        const loadingTask = pdfjsLib.getDocument(typedarray);
+                        const pdf = await loadingTask.promise;
+                        
+                        let extractedText = "";
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(" ");
+                            extractedText += `--- Page ${pageNum} ---\n` + pageText + "\n\n";
+                        }
+
+                        if (!extractedText.trim()) {
+                            extractedText = "Empty PDF document or scanned image-only PDF (no selectable text found).";
+                        }
+
+                        addDocumentToRepository(file.name, extractedText, "pdf");
+                    };
+                    reader.readAsArrayBuffer(file);
+                } catch (err) {
+                    console.error(err);
+                    showToast(`Error reading PDF file: ${file.name}`, "error");
+                }
+            } else if (extension === 'txt' || extension === 'md') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    addDocumentToRepository(file.name, e.target.result, extension);
+                };
+                reader.readAsText(file);
+            } else {
+                showToast("Unsupported document format. Use .pdf, .txt, or .md", "error");
+            }
+        }
+
+        function addDocumentToRepository(title, content, type) {
+            const words = content.split(/\s+/).filter(w => w.length > 0).length;
+            const newDoc = {
+                id: "src-" + Date.now() + Math.random().toString(36).substr(2, 5),
+                title: title,
+                content: content,
+                selected: true,
+                wordCount: words,
+                type: type
+            };
+            uploadedSources.push(newDoc);
+            updateSourcesView();
+            showToast(`Successfully imported: ${title}`);
+        }
+
+        function updateSourcesView() {
+            const container = document.getElementById('sources-list');
+            const badge = document.getElementById('sources-badge');
+            const selectedIndicator = document.getElementById('selected-contexts-indicator');
+            const emptyView = document.getElementById('empty-sources-view');
+
+            if (uploadedSources.length === 0) {
+                container.innerHTML = '';
+                container.appendChild(emptyView);
+                badge.innerText = "0 Loaded";
+                selectedIndicator.innerText = "0 Sources Selected";
+                return;
+            }
+
+            badge.innerText = `${uploadedSources.length} Loaded`;
+            const selectedCount = uploadedSources.filter(s => s.selected).length;
+            selectedIndicator.innerText = `${selectedCount} Source${selectedCount === 1 ? '' : 's'} Selected`;
+
+            container.innerHTML = '';
+            uploadedSources.forEach(doc => {
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border transition-all ${
+                    doc.selected 
+                        ? 'bg-teal-50/20 border-teal-200/80 shadow-sm' 
+                        : 'bg-white border-zinc-100 opacity-70 hover:opacity-100'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between space-x-2">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <input 
+                                type="checkbox"
+                                ${doc.selected ? 'checked' : ''}
+                                onchange="toggleSourceCheck('${doc.id}')"
+                                class="rounded-md border-zinc-300 text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer"
+                            />
+                            <div class="min-w-0 cursor-pointer" onclick="inspectDocument('${doc.id}')">
+                                <h4 class="text-xs font-bold text-zinc-800 truncate hover:text-teal-600 hover:underline transition-all">
+                                    ${doc.title}
+                                </h4>
+                                <p class="text-[10px] text-zinc-400 truncate mt-0.5">
+                                    ${doc.content.slice(0, 48).replace(/[\n\r]+/g, ' ')}...
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button onclick="inspectDocument('${doc.id}')" class="p-1 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-teal-600" title="Inspect Document content">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteDocument('${doc.id}')" class="p-1 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-red-600" title="Delete document">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-zinc-100">
+                        <span class="text-[9px] uppercase tracking-wider font-semibold text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-md">
+                            ${doc.type}
+                        </span>
+                        <span class="text-[9px] text-zinc-400 font-medium">
+                            ${doc.wordCount} words
+                        </span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleSourceCheck(id) {
+            const index = uploadedSources.findIndex(s => s.id === id);
+            if (index !== -1) {
+                uploadedSources[index].selected = !uploadedSources[index].selected;
+                updateSourcesView();
+            }
+        }
+
+        function deleteDocument(id) {
+            uploadedSources = uploadedSources.filter(s => s.id !== id);
+            updateSourcesView();
+            showToast("Document deleted from workspace.");
+        }
+
+        function openManualNoteModal() {
+            document.getElementById('manual-modal').classList.remove('hidden');
+        }
+
+        function closeManualNoteModal() {
+            document.getElementById('manual-modal').classList.add('hidden');
+            document.getElementById('manual-note-title').value = '';
+            document.getElementById('manual-note-content').value = '';
+        }
+
+        function saveManualNote() {
+            const title = document.getElementById('manual-note-title').value.trim();
+            const content = document.getElementById('manual-note-content').value.trim();
+
+            if (!title || !content) {
+                showToast("Please provide both a title and details.", "error");
+                return;
+            }
+
+            addDocumentToRepository(title + ".txt", content, "txt");
+            closeManualNoteModal();
+        }
+
+        let activeInspectorDoc = null;
+
+        function inspectDocument(id) {
+            const doc = uploadedSources.find(s => s.id === id);
+            if (!doc) return;
+
+            activeInspectorDoc = doc;
+            document.getElementById('inspector-title').innerText = doc.title;
+            document.getElementById('inspector-meta').innerText = `${doc.type.toUpperCase()} file • ${doc.wordCount} words`;
+            document.getElementById('inspector-content').innerText = doc.content;
+
+            document.getElementById('inspector-overlay').classList.remove('hidden');
+        }
+
+        function closeInspector() {
+            document.getElementById('inspector-overlay').classList.add('hidden');
+            activeInspectorDoc = null;
+        }
+
+        function copyInspectorContent() {
+            if (activeInspectorDoc) {
+                // Clipboard fallback support
+                const dummy = document.createElement("textarea");
+                document.body.appendChild(dummy);
+                dummy.value = activeInspectorDoc.content;
+                dummy.select();
+                document.execCommand("copy");
+                document.body.removeChild(dummy);
+                showToast("Text content copied to clipboard!");
+            }
+        }
+
+        function speakInspectorContent() {
+            if (activeInspectorDoc && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                // Strip metadata formatting
+                const cleanText = activeInspectorDoc.content.replace(/---Page \d+---/gi, '');
+                const utterance = new SpeechSynthesisUtterance(cleanText.slice(0, 800)); // Limit voice output duration
+                utterance.rate = 1.05;
+                window.speechSynthesis.speak(utterance);
+                showToast("Narrating document summary...");
+            } else {
+                showToast("Speech synthesis unsupported or unavailable.", "error");
+            }
+        }
+
+        function injectSuggestedPrompt(promptText) {
+            document.getElementById('user-input').value = promptText;
+            document.getElementById('user-input').focus();
+        }
+
+        function clearChatHistory() {
+            chatHistory = [];
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = `
+                <div class="flex justify-start">
+                    <div class="bg-zinc-50 border border-zinc-100 rounded-2xl rounded-tl-sm px-4.5 py-3.5 max-w-[85%] text-sm leading-relaxed text-zinc-700 shadow-sm">
+                        <h4 class="font-bold text-zinc-900 text-xs mb-1 flex items-center gap-1.5 text-teal-700">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-teal-500"></i> Workspace Cleared
+                        </h4>
+                        <p class="text-xs leading-relaxed text-zinc-600">
+                            The interaction logs have been cleaned. Write a message below or check active repository documents to start.
+                        </p>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            showToast("Workspace history reset.");
+        }
+
+        async function handleChatSubmit(event) {
+            event.preventDefault();
+            const inputField = document.getElementById('user-input');
+            const prompt = inputField.value.trim();
+
+            if (!prompt) return;
+
+            inputField.value = '';
+            appendChatMessage("user", prompt);
+
+            // Fetch ground context from active documents
+            const selectedDocs = uploadedSources.filter(s => s.selected);
+            let combinedContext = "";
+            if (selectedDocs.length > 0) {
+                combinedContext = selectedDocs.map(doc => `[DOCUMENT TITLE: "${doc.title}"]\n${doc.content}`).join("\n\n---\n\n");
+            } else {
+                combinedContext = "No document active. Prompt the user that they can upload medical literature on the left for specialized analysis.";
+            }
+
+            // Show active typing state
+            const loaderLabel = document.getElementById('typing-indicator-label');
+            const sendBtn = document.getElementById('send-button');
+            loaderLabel.classList.remove('hidden');
+            sendBtn.disabled = true;
+
+            try {
+                // Call Gemini using structured system rules
+                const systemPrompt = `You are a world-class scientific, medical and clinical AI Notebook Assistant modeled directly after NotebookLM.
+You have access to the selected literature from the researcher's local vault.
+Your response must comply with these guidelines:
+1. Always formulate your answers based directly on the facts found in the provided sources.
+2. Format your response utilizing clean, premium Markdown formatting.
+3. For clinical prescriptions, red flags, or procedural checklists, present them in clear, structured lists.
+4. Use bold text to flag critical health parameters, medical abbreviations, or risk warnings.
+5. If the answer cannot be found inside the provided documents, formulate a standard scientific answer using your standard medical knowledge, but add a respectful, brief notice: "*Notice: Inferred using general knowledge database, not specifically present in active documents.*"`;
+
+                const userContent = `ACTIVE GROUNDING CONTEXT:\n${combinedContext}\n\nUSER QUESTION:\n${prompt}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userContent }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    }
+                };
+
+                // Use active API key (or let it rely on the platform fallback)
+                const apiKeyToUse = activeApiKey;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKeyToUse}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API returned standard error status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || "No legible answer returned. Check file variables or pipeline status.";
+
+                appendChatMessage("assistant", textResponse);
+            } catch (err) {
+                console.error(err);
+                appendChatMessage("assistant", "⚠️ **Pipeline Connection Error**: Unable to establish content sync with Gemini. Please input a custom API key at the top-right indicator or verify connection state.");
+                showToast("API handshake error. Verify credentials.", "error");
+            } finally {
+                loaderLabel.classList.add('hidden');
+                sendBtn.disabled = false;
+            }
+        }
+
+        function appendChatMessage(role, text) {
+            const chatBoard = document.getElementById('chat-messages');
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const formattedText = parseBasicMarkdown(text);
+
+            if (role === 'user') {
+                messageWrapper.innerHTML = `
+                    <div class="bg-zinc-900 text-white rounded-2xl rounded-tr-sm px-5 py-3.5 max-w-[85%] text-xs shadow-md">
+                        <p class="leading-relaxed whitespace-pre-wrap">${text}</p>
+                    </div>
+                `;
+            } else {
+                messageWrapper.innerHTML = `
+                    <div class="bg-zinc-50 border border-zinc-100 rounded-2xl rounded-tl-sm px-5 py-4 max-w-[85%] text-xs shadow-sm text-zinc-800">
+                        <h4 class="font-bold text-zinc-900 text-[10px] uppercase tracking-wider mb-2 text-teal-600 flex items-center gap-1.5">
+                            <i data-lucide="pocket" class="w-3.5 h-3.5 text-teal-500"></i> Nazneen Grounded Synthesizer
+                        </h4>
+                        <div class="markdown-body space-y-1.5 leading-relaxed">
+                            ${formattedText}
+                        </div>
+                    </div>
+                `;
+            }
+
+            chatBoard.appendChild(messageWrapper);
+            chatBoard.scrollTop = chatBoard.scrollHeight;
+            lucide.createIcons();
+        }
+
+        function parseBasicMarkdown(rawText) {
+            if (!rawText) return "";
+
+            // Escape standard entities
+            let text = rawText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // Bullet elements
+            const lines = text.split('\n');
+            let resultHTML = "";
+            let insideList = false;
+
+            for (let line of lines) {
+                let trimmed = line.trim();
+
+                // Bold markers (**text**) -> premium colored elements
+                trimmed = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                // Bullet items
+                if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                    if (!insideList) {
+                        resultHTML += '<ul>';
+                        insideList = true;
+                    }
+                    resultHTML += `<li>${trimmed.substring(2)}</li>`;
+                } else {
+                    if (insideList) {
+                        resultHTML += '</ul>';
+                        insideList = false;
+                    }
+
+                    // Clinical headers (### or ##)
+                    if (trimmed.startsWith('###')) {
+                        resultHTML += `<h3>${trimmed.replace('###', '')}</h3>`;
+                    } else if (trimmed.startsWith('##')) {
+                        resultHTML += `<h3>${trimmed.replace('##', '')}</h3>`;
+                    } else if (trimmed !== "") {
+                        resultHTML += `<p>${trimmed}</p>`;
+                    }
+                }
+            }
+
+            if (insideList) {
+                resultHTML += '</ul>';
+            }
+
+            return resultHTML;
+        }
+    </script>
+</body>
+</html>
